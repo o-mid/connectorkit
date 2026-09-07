@@ -3,10 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-    getWalletSupportedTransactionVersions,
-    walletSupportsTransactionVersion,
-} from './transaction-versions';
+import { getWalletSupportedTransactionVersions, walletSupportsTransactionVersion } from './transaction-versions';
 
 function walletWithFeatures(features: Record<string, unknown>) {
     return { features } as Parameters<typeof walletSupportsTransactionVersion>[0];

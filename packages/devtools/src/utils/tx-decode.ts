@@ -129,7 +129,11 @@ export function getComputeBudgetSummaryFromCompiledMessage(
     compiledMessage: CompiledTransactionMessageLike,
 ): Pick<
     DecodedWireTransactionSummary,
-    'computeUnitLimit' | 'computeUnitPriceMicroLamports' | 'priorityFeeLamports' | 'loadedAccountsDataSizeLimit' | 'heapSize'
+    | 'computeUnitLimit'
+    | 'computeUnitPriceMicroLamports'
+    | 'priorityFeeLamports'
+    | 'loadedAccountsDataSizeLimit'
+    | 'heapSize'
 > {
     let computeUnitLimit: number | undefined;
     let computeUnitPriceMicroLamports: bigint | undefined;

@@ -6,10 +6,12 @@ import { createClient, solanaRpc, type TransactionPlannerConfig } from '@solana/
 import { signer } from '@solana/kit-plugin-signer';
 import { useConnectorClient, useKitTransactionSigner } from '@solana/connector';
 
-function createKitClient(walletSigner: TransactionSigner, rpcUrl: string, transactionConfig?: TransactionPlannerConfig) {
-    return createClient()
-        .use(signer(walletSigner))
-        .use(solanaRpc({ rpcUrl, transactionConfig }));
+function createKitClient(
+    walletSigner: TransactionSigner,
+    rpcUrl: string,
+    transactionConfig?: TransactionPlannerConfig,
+) {
+    return createClient().use(signer(walletSigner)).use(solanaRpc({ rpcUrl, transactionConfig }));
 }
 
 /**
