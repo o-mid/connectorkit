@@ -131,6 +131,15 @@ function toWalletAccount(account: WalletConnectSolanaAccount, chains: readonly s
 export function createWalletConnectWallet(config: WalletConnectConfig, transport: WalletConnectTransport): Wallet {
     const chains = (config.defaultChain ? [config.defaultChain] : DEFAULT_CHAINS) as readonly `${string}:${string}`[];
 
+    // The WalletConnect protocol cannot discover the remote wallet's actual
+    // transaction-version support, so advertise the universally safe
+    // legacy/v0 floor unless the app overrides it (e.g. with ['legacy', 0, 1]
+    // for a wallet known to handle v1 / SIMD-0296).
+    const supportedTransactionVersions: readonly ('legacy' | number)[] = config.supportedTransactionVersions ?? [
+        'legacy',
+        0,
+    ];
+
     // Function to get the current CAIP chain ID dynamically
     function getCurrentCaipChainId(): string {
         const currentChain = config.getCurrentChain?.() || config.defaultChain || 'solana:mainnet';
@@ -298,6 +307,7 @@ export function createWalletConnectWallet(config: WalletConnectConfig, transport
             // Solana sign transaction feature
             'solana:signTransaction': {
                 version: '1.0.0',
+                supportedTransactionVersions,
                 signTransaction: async ({
                     account,
                     transaction,
@@ -337,6 +347,7 @@ export function createWalletConnectWallet(config: WalletConnectConfig, transport
             // Solana sign all transactions feature
             'solana:signAllTransactions': {
                 version: '1.0.0',
+                supportedTransactionVersions,
                 signAllTransactions: async ({
                     account,
                     transactions,
@@ -382,6 +393,7 @@ export function createWalletConnectWallet(config: WalletConnectConfig, transport
             // Solana sign and send transaction feature
             'solana:signAndSendTransaction': {
                 version: '1.0.0',
+                supportedTransactionVersions,
                 signAndSendTransaction: async ({
                     transaction,
                     options,
