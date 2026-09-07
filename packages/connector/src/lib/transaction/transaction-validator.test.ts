@@ -5,7 +5,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { TransactionValidator, MAX_TRANSACTION_SIZE, MIN_TRANSACTION_SIZE } from './transaction-validator';
+import {
+    TransactionValidator,
+    MAX_TRANSACTION_SIZE,
+    MAX_TRANSACTION_SIZE_V1,
+    MIN_TRANSACTION_SIZE,
+} from './transaction-validator';
+import { createWireTransactionBytes } from '../../__tests__/fixtures/transactions';
 
 describe('TransactionValidator', () => {
     describe('validate', () => {
@@ -122,6 +128,61 @@ describe('TransactionValidator', () => {
             // Strict mode is accepted as an option
             expect(result).toBeDefined();
             expect(result.valid).toBeDefined();
+        });
+    });
+
+    describe('version-aware size limits', () => {
+        it('should accept a v1 transaction larger than the legacy limit', () => {
+            const v1Tx = createWireTransactionBytes(1, { instructionDataBytes: 1800 });
+            expect(v1Tx.length).toBeGreaterThan(MAX_TRANSACTION_SIZE);
+            expect(v1Tx.length).toBeLessThanOrEqual(MAX_TRANSACTION_SIZE_V1);
+
+            const result = TransactionValidator.validate(v1Tx);
+
+            expect(result.valid).toBe(true);
+            expect(result.errors).toHaveLength(0);
+        });
+
+        it('should reject a v1 transaction above the 4096-byte limit', () => {
+            const v1Tx = createWireTransactionBytes(1, { instructionDataBytes: 4200 });
+            expect(v1Tx.length).toBeGreaterThan(MAX_TRANSACTION_SIZE_V1);
+
+            const result = TransactionValidator.validate(v1Tx);
+
+            expect(result.valid).toBe(false);
+            expect(result.errors.some(e => e.includes(`max ${MAX_TRANSACTION_SIZE_V1} bytes`))).toBe(true);
+        });
+
+        it('should keep the 1232-byte limit for v0 transactions', () => {
+            const v0Tx = createWireTransactionBytes(0, { instructionDataBytes: 1800 });
+            expect(v0Tx.length).toBeGreaterThan(MAX_TRANSACTION_SIZE);
+
+            const result = TransactionValidator.validate(v0Tx);
+
+            expect(result.valid).toBe(false);
+            expect(result.errors.some(e => e.includes(`max ${MAX_TRANSACTION_SIZE} bytes`))).toBe(true);
+        });
+
+        it('should keep the 1232-byte limit for legacy transactions', () => {
+            const legacyTx = createWireTransactionBytes('legacy', { instructionDataBytes: 1800 });
+
+            const result = TransactionValidator.validate(legacyTx);
+
+            expect(result.valid).toBe(false);
+            expect(result.errors.some(e => e.includes(`max ${MAX_TRANSACTION_SIZE} bytes`))).toBe(true);
+        });
+
+        it('should let an explicit maxSize override the version default', () => {
+            const v1Tx = createWireTransactionBytes(1, { instructionDataBytes: 1800 });
+
+            const result = TransactionValidator.validate(v1Tx, { maxSize: 1000 });
+
+            expect(result.valid).toBe(false);
+            expect(result.errors.some(e => e.includes('too large'))).toBe(true);
+        });
+
+        it('should export MAX_TRANSACTION_SIZE_V1', () => {
+            expect(MAX_TRANSACTION_SIZE_V1).toBe(4096);
         });
     });
 
