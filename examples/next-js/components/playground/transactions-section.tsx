@@ -281,7 +281,9 @@ export function V1SolTransfer() {
     }, [connectorClient, connectorId]);
 
     const clusterSupportsV1 = cluster ? V1_CLUSTERS.includes(cluster.id) : false;
-    const walletSupportsV1 = wallet ? walletSupportsTransactionVersion(wallet, 1) : false;
+    // The kit client signs via the wallet's solana:signTransaction feature, so
+    // gate on that operation's declared versions specifically.
+    const walletSupportsV1 = wallet ? walletSupportsTransactionVersion(wallet, 1, 'solana:signTransaction') : false;
 
     const visualPipeline = useMemo(
         () =>

@@ -10,7 +10,15 @@
 import type { Wallet } from '@wallet-standard/base';
 import type { SolanaTransactionVersionLike } from '../types/transactions';
 
-const SIGN_FEATURES = ['solana:signTransaction', 'solana:signAndSendTransaction'] as const;
+/** A wallet-standard signing feature that can declare `supportedTransactionVersions`. */
+export type SolanaSignFeatureName =
+    'solana:signAllTransactions' | 'solana:signAndSendTransaction' | 'solana:signTransaction';
+
+const SIGN_FEATURES: readonly SolanaSignFeatureName[] = [
+    'solana:signAllTransactions',
+    'solana:signAndSendTransaction',
+    'solana:signTransaction',
+];
 
 function readFeatureVersions(feature: unknown): readonly SolanaTransactionVersionLike[] | undefined {
     if (!feature || typeof feature !== 'object') return undefined;
@@ -20,16 +28,30 @@ function readFeatureVersions(feature: unknown): readonly SolanaTransactionVersio
 }
 
 /**
- * Collect the transaction versions a wallet advertises across its sign
- * features (`solana:signTransaction` and `solana:signAndSendTransaction`).
+ * Collect the transaction versions a wallet advertises for signing.
  *
- * @returns The union of declared versions, or `undefined` when no sign
- *          feature declares the field at all.
+ * Each signing operation declares its own support, and they can differ (e.g.
+ * `solana:signAndSendTransaction` may accept v1 while `solana:signTransaction`
+ * does not), so pass the feature you are about to invoke to read only its
+ * declaration. Without a feature, the union across all sign features is
+ * returned — useful for "does this wallet support the version at all", not
+ * for gating a specific operation.
+ *
+ * @param wallet - The wallet whose features to inspect
+ * @param feature - Restrict the read to a single signing feature's declaration
+ * @returns The declared versions, or `undefined` when the relevant feature(s)
+ *          declare no `supportedTransactionVersions` field at all.
  */
 export function getWalletSupportedTransactionVersions(
     wallet: Pick<Wallet, 'features'>,
+    feature?: SolanaSignFeatureName,
 ): readonly SolanaTransactionVersionLike[] | undefined {
     const features = wallet.features as Record<string, unknown>;
+
+    if (feature) {
+        return readFeatureVersions(features[feature]);
+    }
+
     let declared = false;
     const union = new Set<SolanaTransactionVersionLike>();
 
@@ -46,23 +68,29 @@ export function getWalletSupportedTransactionVersions(
 /**
  * Whether a wallet can sign transactions of the given version.
  *
- * Wallets that declare `supportedTransactionVersions` on a sign feature are
- * taken at their word. Wallets that don't declare it are assumed to handle
- * legacy and version 0 only — the universally supported baseline — so v1
- * (SIMD-0296) requires an explicit declaration.
+ * Pass the signing feature you intend to invoke: version support is declared
+ * per operation, and gating on another operation's declaration can enable a
+ * flow the wallet will reject. Without a feature, the check answers whether
+ * *any* signing operation supports the version.
+ *
+ * Wallets (or features) that declare `supportedTransactionVersions` are taken
+ * at their word. Those that don't are assumed to handle legacy and version 0
+ * only — the universally supported baseline — so v1 (SIMD-0296) requires an
+ * explicit declaration.
  *
  * @example
  * ```ts
- * if (walletSupportsTransactionVersion(wallet, 1)) {
- *     // safe to send this wallet a v1 transaction
+ * if (walletSupportsTransactionVersion(wallet, 1, 'solana:signTransaction')) {
+ *     // safe to send this wallet a v1 transaction for standalone signing
  * }
  * ```
  */
 export function walletSupportsTransactionVersion(
     wallet: Pick<Wallet, 'features'>,
     version: SolanaTransactionVersionLike,
+    feature?: SolanaSignFeatureName,
 ): boolean {
-    const declared = getWalletSupportedTransactionVersions(wallet);
+    const declared = getWalletSupportedTransactionVersions(wallet, feature);
     if (declared === undefined) {
         return version === 'legacy' || version === 0;
     }

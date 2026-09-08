@@ -172,6 +172,29 @@ describe('TransactionValidator', () => {
             expect(result.errors.some(e => e.includes(`max ${MAX_TRANSACTION_SIZE} bytes`))).toBe(true);
         });
 
+        it('should not grant the v1 limit to undecodable bytes with a v1 discriminator', () => {
+            // An arbitrary blob starting 0x81 is not proof of a v1 transaction;
+            // it must not gain 4096 bytes of headroom.
+            const garbage = new Uint8Array(2000).fill(7);
+            garbage[0] = 0x81;
+
+            const result = TransactionValidator.validate(garbage);
+
+            expect(result.valid).toBe(false);
+            expect(result.errors.some(e => e.includes(`max ${MAX_TRANSACTION_SIZE} bytes`))).toBe(true);
+            expect(result.errors.some(e => e.includes('version unknown'))).toBe(true);
+        });
+
+        it('should not grant the v1 limit to an unknown future discriminator', () => {
+            const garbage = new Uint8Array(2000).fill(7);
+            garbage[0] = 0x83;
+
+            const result = TransactionValidator.validate(garbage);
+
+            expect(result.valid).toBe(false);
+            expect(result.errors.some(e => e.includes(`max ${MAX_TRANSACTION_SIZE} bytes`))).toBe(true);
+        });
+
         it('should let an explicit maxSize override the version default', () => {
             const v1Tx = createWireTransactionBytes(1, { instructionDataBytes: 1800 });
 

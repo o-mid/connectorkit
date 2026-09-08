@@ -88,3 +88,46 @@ describe('walletSupportsTransactionVersion', () => {
         expect(walletSupportsTransactionVersion(wallet, 0)).toBe(true);
     });
 });
+
+describe('operation-aware negotiation', () => {
+    // Declarations differ per operation: signAndSendTransaction accepts v1,
+    // standalone signTransaction does not.
+    const mixedWallet = walletWithFeatures({
+        'solana:signAndSendTransaction': { supportedTransactionVersions: ['legacy', 0, 1] },
+        'solana:signTransaction': { supportedTransactionVersions: ['legacy', 0] },
+    });
+
+    it('reads a single feature declaration when the operation is given', () => {
+        expect(getWalletSupportedTransactionVersions(mixedWallet, 'solana:signTransaction')).toEqual(['legacy', 0]);
+        expect(getWalletSupportedTransactionVersions(mixedWallet, 'solana:signAndSendTransaction')).toEqual([
+            'legacy',
+            0,
+            1,
+        ]);
+    });
+
+    it('gates a specific operation on its own declaration, not the union', () => {
+        expect(walletSupportsTransactionVersion(mixedWallet, 1, 'solana:signTransaction')).toBe(false);
+        expect(walletSupportsTransactionVersion(mixedWallet, 1, 'solana:signAndSendTransaction')).toBe(true);
+        // Without an operation, the union answers "any operation supports it"
+        expect(walletSupportsTransactionVersion(mixedWallet, 1)).toBe(true);
+    });
+
+    it('includes solana:signAllTransactions in the union and per-operation reads', () => {
+        const batchWallet = walletWithFeatures({
+            'solana:signAllTransactions': { supportedTransactionVersions: ['legacy', 0, 1] },
+        });
+
+        expect(walletSupportsTransactionVersion(batchWallet, 1, 'solana:signAllTransactions')).toBe(true);
+        expect(walletSupportsTransactionVersion(batchWallet, 1)).toBe(true);
+    });
+
+    it('falls back to the legacy/v0 baseline for an operation with no declaration', () => {
+        const wallet = walletWithFeatures({
+            'solana:signTransaction': { signTransaction: () => {} },
+        });
+
+        expect(walletSupportsTransactionVersion(wallet, 0, 'solana:signTransaction')).toBe(true);
+        expect(walletSupportsTransactionVersion(wallet, 1, 'solana:signTransaction')).toBe(false);
+    });
+});
