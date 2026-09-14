@@ -147,13 +147,20 @@ import { getTransferSolInstruction } from '@solana-program/system';
 import { useCluster, useConnectorClient } from '@solana/connector';
 import { getSolanaExplorerUrl } from '@solana/connector/headless';
 import { PipelineHeaderButton, PipelineVisualization } from '@/components/pipeline';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { VisualPipeline } from '@/lib/visual-pipeline';
 import { useKitClient } from '@/lib/kit-client';
 import { useExampleCardHeaderActions } from '@/components/playground/example-card-actions';
 
+/**
+ * Modern Self Transfer Component
+ *
+ * Self-transfers 1 lamport with a @solana/kit plugin client. The connected
+ * wallet fills the client's payer and identity roles, and \`sendTransaction\`
+ * plans the instruction into a transaction message, estimates its compute
+ * budget, signs, sends, and confirms it in one call.
+ */
 export function ModernSolTransfer() {
-    // A kit plugin client whose payer and identity are the connected wallet:
-    //   createClient().use(signer(walletSigner)).use(solanaRpc({ rpcUrl }))
     const { client: kitClient, ready, canSendTransactions } = useKitClient();
     const { cluster } = useCluster();
     const connectorClient = useConnectorClient();
@@ -168,7 +175,7 @@ export function ModernSolTransfer() {
     );
 
     const getExplorerUrl = useCallback(
-        (sig: string) => getSolanaExplorerUrl(sig, { cluster: cluster?.id.replace('solana:', '') }),
+        (signature: string) => getSolanaExplorerUrl(signature, { cluster: cluster?.id.replace('solana:', '') }),
         [cluster?.id],
     );
 
@@ -189,8 +196,6 @@ export function ModernSolTransfer() {
 
                 visualPipeline.setStepState('Self transfer', { type: 'sending' });
 
-                // Plans the instruction into a transaction message, estimates its
-                // compute budget, signs, sends, and confirms — in one call.
                 const { context } = await kitClient.sendTransaction([transferInstruction]);
                 const signature = context.signature;
 
@@ -209,16 +214,36 @@ export function ModernSolTransfer() {
         }
     }, [connectorClient, kitClient, visualPipeline]);
 
-    useExampleCardHeaderActions(
-        <PipelineHeaderButton
-            visualPipeline={visualPipeline}
-            disabled={!ready || !canSendTransactions}
-            onExecute={executeSelfTransfer}
-        />,
+    const headerAction = useMemo(
+        () => (
+            <PipelineHeaderButton
+                visualPipeline={visualPipeline}
+                disabled={!ready || !canSendTransactions}
+                onExecute={executeSelfTransfer}
+            />
+        ),
+        [canSendTransactions, executeSelfTransfer, ready, visualPipeline],
     );
 
+    useExampleCardHeaderActions(headerAction);
+
     return (
-        <PipelineVisualization visualPipeline={visualPipeline} strategy="sequential" getExplorerUrl={getExplorerUrl} />
+        <div className="w-full flex flex-col">
+            {ready && !canSendTransactions && (
+                <Alert className="mb-3">
+                    <AlertDescription>
+                        This cluster is served by the HTTP-only <code>/api/rpc</code> proxy, which cannot deliver the
+                        signature subscription kit uses to confirm sends. Switch to devnet or testnet to run this
+                        example.
+                    </AlertDescription>
+                </Alert>
+            )}
+            <PipelineVisualization
+                visualPipeline={visualPipeline}
+                strategy="sequential"
+                getExplorerUrl={getExplorerUrl}
+            />
+        </div>
     );
 }`,
         render: () => <ModernSolTransfer />,
@@ -238,7 +263,7 @@ import { useCluster, useConnector, useConnectorClient, walletSupportsTransaction
 import type { TransactionPlannerConfig } from '@solana/connector/kit';
 import { getSolanaExplorerUrl } from '@solana/connector/headless';
 import { PipelineHeaderButton, PipelineVisualization } from '@/components/pipeline';
-import { Alert } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { VisualPipeline } from '@/lib/visual-pipeline';
 import { useKitClient } from '@/lib/kit-client';
 import { useExampleCardHeaderActions } from '@/components/playground/example-card-actions';
@@ -352,24 +377,30 @@ export function V1SolTransfer() {
 
     useExampleCardHeaderActions(headerAction);
 
-    return (
+    // At most one gating message, in priority order: cluster, then wallet,
+    // then confirmation transport.
+    const gateMessage = !clusterSupportsV1 ? (
         <>
-            {ready && !clusterSupportsV1 && (
+            Version 1 transactions are not active on this cluster yet. Switch to devnet or testnet (mainnet activation
+            ships with Agave v4.2).
+        </>
+    ) : !walletSupportsV1 ? (
+        <>
+            The connected wallet does not advertise v1 transaction support (<code>supportedTransactionVersions</code>).
+            Connect the burner wallet to run this example.
+        </>
+    ) : !canSendTransactions ? (
+        <>
+            This cluster is served by the HTTP-only <code>/api/rpc</code> proxy, which cannot deliver the signature
+            subscription kit uses to confirm sends. Switch to devnet or testnet to run this example.
+        </>
+    ) : null;
+
+    return (
+        <div className="w-full flex flex-col">
+            {ready && gateMessage && (
                 <Alert className="mb-3">
-                    Version 1 transactions are not active on this cluster yet. Switch to devnet or testnet (mainnet
-                    activation ships with Agave v4.2).
-                </Alert>
-            )}
-            {ready && clusterSupportsV1 && !walletSupportsV1 && (
-                <Alert className="mb-3">
-                    The connected wallet does not advertise v1 transaction support (
-                    <code>supportedTransactionVersions</code>). Connect the burner wallet to run this example.
-                </Alert>
-            )}
-            {ready && !canSendTransactions && (
-                <Alert className="mb-3">
-                    This cluster is served by the HTTP-only <code>/api/rpc</code> proxy, which cannot deliver the
-                    signature subscription kit uses to confirm sends. Switch to devnet or testnet to run this example.
+                    <AlertDescription>{gateMessage}</AlertDescription>
                 </Alert>
             )}
             <PipelineVisualization
@@ -377,7 +408,7 @@ export function V1SolTransfer() {
                 strategy="sequential"
                 getExplorerUrl={getExplorerUrl}
             />
-        </>
+        </div>
     );
 }`,
         render: () => <V1SolTransfer />,
@@ -395,6 +426,7 @@ import { getTransferSolInstruction } from '@solana-program/system';
 import { useCluster, useConnectorClient } from '@solana/connector';
 import { getSolanaExplorerUrl } from '@solana/connector/headless';
 import { PipelineHeaderButton, PipelineVisualization } from '@/components/pipeline';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { VisualPipeline } from '@/lib/visual-pipeline';
 import { useKitClient } from '@/lib/kit-client';
 import { useExampleCardHeaderActions } from '@/components/playground/example-card-actions';
@@ -402,9 +434,15 @@ import { useExampleCardHeaderActions } from '@/components/playground/example-car
 // Destination wallet address
 const DESTINATION_ADDRESS = address('A7Xmq3qqt4uvw3GELHw9HHNFbwZzHDJNtmk6fe2p5b5s');
 
+/**
+ * Modern Wallet Transfer Component
+ *
+ * Transfers 1 lamport to another wallet with a @solana/kit plugin client. The
+ * connected wallet fills the client's payer and identity roles, and
+ * \`sendTransaction\` plans the instruction into a transaction message, estimates
+ * its compute budget, signs, sends, and confirms it in one call.
+ */
 export function ModernWalletTransfer() {
-    // A kit plugin client whose payer and identity are the connected wallet:
-    //   createClient().use(signer(walletSigner)).use(solanaRpc({ rpcUrl }))
     const { client: kitClient, ready, canSendTransactions } = useKitClient();
     const { cluster } = useCluster();
     const connectorClient = useConnectorClient();
@@ -419,7 +457,7 @@ export function ModernWalletTransfer() {
     );
 
     const getExplorerUrl = useCallback(
-        (sig: string) => getSolanaExplorerUrl(sig, { cluster: cluster?.id.replace('solana:', '') }),
+        (signature: string) => getSolanaExplorerUrl(signature, { cluster: cluster?.id.replace('solana:', '') }),
         [cluster?.id],
     );
 
@@ -439,8 +477,6 @@ export function ModernWalletTransfer() {
 
                 visualPipeline.setStepState('Transfer SOL', { type: 'sending' });
 
-                // Plans the instruction into a transaction message, estimates its
-                // compute budget, signs, sends, and confirms — in one call.
                 const { context } = await kitClient.sendTransaction([transferInstruction]);
                 const signature = context.signature;
 
@@ -459,16 +495,36 @@ export function ModernWalletTransfer() {
         }
     }, [connectorClient, kitClient, visualPipeline]);
 
-    useExampleCardHeaderActions(
-        <PipelineHeaderButton
-            visualPipeline={visualPipeline}
-            disabled={!ready || !canSendTransactions}
-            onExecute={executeWalletTransfer}
-        />,
+    const headerAction = useMemo(
+        () => (
+            <PipelineHeaderButton
+                visualPipeline={visualPipeline}
+                disabled={!ready || !canSendTransactions}
+                onExecute={executeWalletTransfer}
+            />
+        ),
+        [canSendTransactions, executeWalletTransfer, ready, visualPipeline],
     );
 
+    useExampleCardHeaderActions(headerAction);
+
     return (
-        <PipelineVisualization visualPipeline={visualPipeline} strategy="sequential" getExplorerUrl={getExplorerUrl} />
+        <div className="w-full flex flex-col">
+            {ready && !canSendTransactions && (
+                <Alert className="mb-3">
+                    <AlertDescription>
+                        This cluster is served by the HTTP-only <code>/api/rpc</code> proxy, which cannot deliver the
+                        signature subscription kit uses to confirm sends. Switch to devnet or testnet to run this
+                        example.
+                    </AlertDescription>
+                </Alert>
+            )}
+            <PipelineVisualization
+                visualPipeline={visualPipeline}
+                strategy="sequential"
+                getExplorerUrl={getExplorerUrl}
+            />
+        </div>
     );
 }`,
         render: () => <ModernWalletTransfer />,

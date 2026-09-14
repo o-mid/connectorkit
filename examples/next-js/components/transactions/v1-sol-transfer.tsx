@@ -7,7 +7,7 @@ import { useCluster, useConnector, useConnectorClient, walletSupportsTransaction
 import type { TransactionPlannerConfig } from '@solana/connector/kit';
 import { getSolanaExplorerUrl } from '@solana/connector/headless';
 import { PipelineHeaderButton, PipelineVisualization } from '@/components/pipeline';
-import { Alert } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { VisualPipeline } from '@/lib/visual-pipeline';
 import { useKitClient } from '@/lib/kit-client';
 import { useExampleCardHeaderActions } from '@/components/playground/example-card-actions';
@@ -121,24 +121,30 @@ export function V1SolTransfer() {
 
     useExampleCardHeaderActions(headerAction);
 
-    return (
+    // At most one gating message, in priority order: cluster, then wallet,
+    // then confirmation transport.
+    const gateMessage = !clusterSupportsV1 ? (
         <>
-            {ready && !clusterSupportsV1 && (
+            Version 1 transactions are not active on this cluster yet. Switch to devnet or testnet (mainnet activation
+            ships with Agave v4.2).
+        </>
+    ) : !walletSupportsV1 ? (
+        <>
+            The connected wallet does not advertise v1 transaction support (<code>supportedTransactionVersions</code>).
+            Connect the burner wallet to run this example.
+        </>
+    ) : !canSendTransactions ? (
+        <>
+            This cluster is served by the HTTP-only <code>/api/rpc</code> proxy, which cannot deliver the signature
+            subscription kit uses to confirm sends. Switch to devnet or testnet to run this example.
+        </>
+    ) : null;
+
+    return (
+        <div className="w-full flex flex-col">
+            {ready && gateMessage && (
                 <Alert className="mb-3">
-                    Version 1 transactions are not active on this cluster yet. Switch to devnet or testnet (mainnet
-                    activation ships with Agave v4.2).
-                </Alert>
-            )}
-            {ready && clusterSupportsV1 && !walletSupportsV1 && (
-                <Alert className="mb-3">
-                    The connected wallet does not advertise v1 transaction support (
-                    <code>supportedTransactionVersions</code>). Connect the burner wallet to run this example.
-                </Alert>
-            )}
-            {ready && !canSendTransactions && (
-                <Alert className="mb-3">
-                    This cluster is served by the HTTP-only <code>/api/rpc</code> proxy, which cannot deliver the
-                    signature subscription kit uses to confirm sends. Switch to devnet or testnet to run this example.
+                    <AlertDescription>{gateMessage}</AlertDescription>
                 </Alert>
             )}
             <PipelineVisualization
@@ -146,6 +152,6 @@ export function V1SolTransfer() {
                 strategy="sequential"
                 getExplorerUrl={getExplorerUrl}
             />
-        </>
+        </div>
     );
 }
