@@ -151,8 +151,8 @@ export function createRemoteSignerWallet(config: RemoteWalletConfig): Wallet {
     // protocol lets the server declare its supported versions in the metadata
     // capabilities (available after connect); before that — or when the server
     // omits the field — the universally safe legacy/v0 floor is advertised.
-    // Values are widened beyond wallet-standard's `'legacy' | 0` union, which
-    // cannot yet express v1 (SIMD-0296).
+    // Values are widened beyond wallet-standard's `'legacy' | 0 | 1` union so
+    // a server can advertise versions newer than the installed typings.
     const getSupportedTransactionVersions = (): readonly ('legacy' | number)[] =>
         metadata?.capabilities.supportedTransactionVersions ?? ['legacy', 0];
 

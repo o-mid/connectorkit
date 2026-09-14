@@ -2,9 +2,10 @@
  * Transaction Version Negotiation
  *
  * Permissive readers for the wallet-standard `supportedTransactionVersions`
- * field. Wallet-standard's own type is still `'legacy' | 0` and cannot yet
- * express v1 (SIMD-0296), so these helpers read the field structurally and
- * tolerate values the upstream types don't know about.
+ * field. Wallet-standard types the field `'legacy' | 0 | 1` (v1 landed in
+ * `@solana/wallet-standard-features` 1.5), but wallets in the wild may be
+ * built against older or newer typings, so these helpers read the field
+ * structurally and tolerate values the installed types don't know about.
  */
 
 import type { Wallet } from '@wallet-standard/base';

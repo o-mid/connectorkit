@@ -78,10 +78,10 @@ export interface SignedTransaction {
 /**
  * A transaction version a wallet may advertise support for.
  *
- * Forward-compatible superset of wallet-standard's `SolanaTransactionVersion`,
- * which is still typed `'legacy' | 0` upstream and cannot yet express v1
- * (SIMD-0296). Cast at the wallet-standard boundary; this widened type can be
- * deleted once the upstream union gains `1`.
+ * Forward-compatible superset of wallet-standard's `SolanaTransactionVersion`
+ * (`'legacy' | 0 | 1` as of `@solana/wallet-standard-features` 1.5). The
+ * widened type is kept so permissive reads and the remote-signer protocol
+ * tolerate versions newer than the installed wallet-standard typings.
  */
 export type SolanaTransactionVersionLike = 'legacy' | number;
 

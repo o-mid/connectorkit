@@ -215,10 +215,8 @@ class BurnerWallet implements Wallet {
         [SolanaSignTransaction]: {
             signTransaction: this.#signTransaction,
             // The burner signs raw wire bytes via kit's transaction codec, so
-            // v1 (SIMD-0296) is genuinely supported. Wallet-standard's
-            // SolanaTransactionVersion union is still 'legacy' | 0 upstream
-            // and cannot express 1 yet, hence the cast at this boundary.
-            supportedTransactionVersions: ['legacy', 0, 1] as unknown as readonly ('legacy' | 0)[],
+            // v1 (SIMD-0296) is genuinely supported.
+            supportedTransactionVersions: ['legacy', 0, 1] as const,
             version: '1.0.0' as const,
         },
         [StandardConnect]: { connect: this.#connect, version: '1.0.0' as const },
