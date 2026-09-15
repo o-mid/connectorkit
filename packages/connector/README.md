@@ -164,7 +164,7 @@ export function ConnectButton() {
 
 `connectors` comes from `useConnector()` or from `useWalletConnectors()`. There is no `useConnectors` hook.
 
-The list is empty until Wallet Standard wallets have registered. Server-side renders and environments without an injected wallet (including jsdom tests) will see `[]`. That is expected.
+The list is empty until wallets register or are provided through configuration. SSR sees `[]`. Browser-like environments without registered, configured, or enabled wallets (including jsdom without an injected wallet) also see `[]`. Configured `additionalWallets` or WalletConnect can still populate the list.
 
 ---
 
