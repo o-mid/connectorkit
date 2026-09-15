@@ -312,19 +312,7 @@ export class AutoConnector {
             }
 
             setTimeout(() => {
-                const ws = walletsApi.get();
-
-                if (this.debug) {
-                    logger.debug('Checking for wallet standard update', {
-                        wsLength: ws.length,
-                        currentWalletsLength: this.stateManager.getSnapshot().wallets.length,
-                        shouldUpdate: ws.length > 1,
-                    });
-                }
-
-                if (ws.length > 1) {
-                    this.walletDetector.initialize();
-                }
+                this.walletDetector.initialize();
             }, 500);
 
             return true;

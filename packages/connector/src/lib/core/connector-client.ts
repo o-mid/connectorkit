@@ -125,7 +125,24 @@ export class ConnectorClient {
             // Apply wallet list controls (allow/deny/featured) before detection
             this.walletDetector.setWalletDisplayConfig(this.config.wallets);
 
-            this.walletDetector.initialize();
+            void this.walletDetector
+                .initializeAsync()
+                .then(() => {
+                    if (this.config.autoConnect) {
+                        setTimeout(() => {
+                            this.autoConnector.attemptAutoConnect().catch(err => {
+                                if (this.config.debug) {
+                                    logger.error('Auto-connect error', { error: err });
+                                }
+                            });
+                        }, AUTO_CONNECT_DELAY_MS);
+                    }
+                })
+                .catch(err => {
+                    if (this.config.debug) {
+                        logger.error('Wallet detection failed', { error: err });
+                    }
+                });
 
             // Register WalletConnect wallet if enabled
             if (this.config.walletConnect?.enabled) {
@@ -134,16 +151,6 @@ export class ConnectorClient {
                         logger.error('WalletConnect initialization failed', { error: err });
                     }
                 });
-            }
-
-            if (this.config.autoConnect) {
-                setTimeout(() => {
-                    this.autoConnector.attemptAutoConnect().catch(err => {
-                        if (this.config.debug) {
-                            logger.error('Auto-connect error', { error: err });
-                        }
-                    });
-                }, AUTO_CONNECT_DELAY_MS);
             }
 
             this.initialized = true;

@@ -278,4 +278,28 @@ describe('WalletDetector', () => {
 
         expect(names).toEqual(['Phantom']);
     });
+
+    it('should refresh connectors after wallets appear even if already connected', () => {
+        vi.useFakeTimers();
+        try {
+            const getFn = vi.fn(() => [] as ReturnType<typeof createMockPhantomWallet>[]);
+            vi.mocked(getWalletsRegistry).mockReturnValue({
+                get: getFn,
+                on: vi.fn(() => vi.fn()),
+            } as unknown as ReturnType<typeof getWalletsRegistry>);
+
+            detector.initialize();
+            expect(mockStateManager.getSnapshot().connectors).toEqual([]);
+
+            mockStateManager.updateState({ connected: true });
+            getFn.mockReturnValue([createMockPhantomWallet()]);
+
+            vi.advanceTimersByTime(1000);
+
+            const names = mockStateManager.getSnapshot().connectors.map(c => c.name);
+            expect(names).toContain('Phantom');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });

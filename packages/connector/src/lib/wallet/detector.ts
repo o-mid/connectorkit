@@ -226,6 +226,11 @@ export class WalletDetector extends BaseCollaborator {
     initialize(): void {
         if (typeof window === 'undefined') return;
 
+        if (this.unsubscribers.length > 0) {
+            this.refreshWallets();
+            return;
+        }
+
         try {
             const walletsApi = getWalletsRegistry();
             const update = () => {
@@ -273,9 +278,7 @@ export class WalletDetector extends BaseCollaborator {
             this.unsubscribers.push(walletsApi.on('unregister', update));
 
             setTimeout(() => {
-                if (!this.getState().connected) {
-                    update();
-                }
+                update();
             }, 1000);
         } catch {}
     }

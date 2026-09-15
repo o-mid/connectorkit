@@ -57,6 +57,7 @@ describe('ConnectorClient', () => {
         vi.mocked(WalletDetector).mockImplementation(function () {
             return {
                 initialize: vi.fn(),
+                initializeAsync: vi.fn().mockResolvedValue(undefined),
                 destroy: vi.fn(),
                 getDetectedWallets: vi.fn(() => []),
             } as unknown as InstanceType<typeof WalletDetector>;
