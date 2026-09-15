@@ -212,7 +212,6 @@ export function getWalletsRegistry(): WalletsRegistry {
                     if (pending.unsubscribe) {
                         pending.unsubscribe();
                         pending.unsubscribe = null;
-                        return;
                     }
                     const index = pendingRegistryListeners.indexOf(pending);
                     if (index >= 0) pendingRegistryListeners.splice(index, 1);

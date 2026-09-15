@@ -41,6 +41,8 @@ export class ConnectorClient {
     private debugMetrics: DebugMetrics;
     private healthMonitor: HealthMonitor;
     private initialized = false;
+    private destroyed = false;
+    private autoConnectTimer: ReturnType<typeof setTimeout> | null = null;
     private config: ConnectorConfig;
     private walletConnectRegistration: WalletConnectRegistration | null = null;
 
@@ -128,8 +130,11 @@ export class ConnectorClient {
             void this.walletDetector
                 .initializeAsync()
                 .then(() => {
+                    if (this.destroyed) return;
                     if (this.config.autoConnect) {
-                        setTimeout(() => {
+                        this.autoConnectTimer = setTimeout(() => {
+                            this.autoConnectTimer = null;
+                            if (this.destroyed) return;
                             this.autoConnector.attemptAutoConnect().catch(err => {
                                 if (this.config.debug) {
                                     logger.error('Auto-connect error', { error: err });
@@ -139,6 +144,7 @@ export class ConnectorClient {
                     }
                 })
                 .catch(err => {
+                    if (this.destroyed) return;
                     if (this.config.debug) {
                         logger.error('Wallet detection failed', { error: err });
                     }
@@ -382,6 +388,12 @@ export class ConnectorClient {
     }
 
     destroy(): void {
+        this.destroyed = true;
+        if (this.autoConnectTimer) {
+            clearTimeout(this.autoConnectTimer);
+            this.autoConnectTimer = null;
+        }
+
         // Unregister WalletConnect wallet if it was registered
         if (this.walletConnectRegistration) {
             try {
@@ -395,6 +407,7 @@ export class ConnectorClient {
         }
 
         this.connectionManager.disconnect().catch(() => {});
+        this.autoConnector.destroy();
         this.walletDetector.destroy();
         this.eventEmitter.offAll();
         this.stateManager.clear();

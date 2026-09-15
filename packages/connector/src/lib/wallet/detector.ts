@@ -137,6 +137,8 @@ export class WalletDetector extends BaseCollaborator {
     private walletDisplayConfig: WalletDisplayConfig | undefined;
     /** Map from stable connector ID to Wallet reference (not stored in state) */
     private connectorRegistry = new Map<WalletConnectorId, Wallet>();
+    private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    private destroyed = false;
 
     constructor(
         stateManager: import('../core/state-manager').StateManager,
@@ -225,6 +227,7 @@ export class WalletDetector extends BaseCollaborator {
      */
     initialize(): void {
         if (typeof window === 'undefined') return;
+        if (this.destroyed) return;
 
         if (this.unsubscribers.length > 0) {
             this.refreshWallets();
@@ -277,7 +280,9 @@ export class WalletDetector extends BaseCollaborator {
             this.unsubscribers.push(walletsApi.on('register', update));
             this.unsubscribers.push(walletsApi.on('unregister', update));
 
-            setTimeout(() => {
+            this.refreshTimer = setTimeout(() => {
+                this.refreshTimer = null;
+                if (this.destroyed) return;
                 update();
             }, 1000);
         } catch {}
@@ -303,6 +308,7 @@ export class WalletDetector extends BaseCollaborator {
 
         // Wait for registry to be ready before initial detection
         await ready;
+        if (this.destroyed) return;
 
         // Now initialize with guaranteed registry availability
         this.initialize();
@@ -471,6 +477,11 @@ export class WalletDetector extends BaseCollaborator {
      * Cleanup resources
      */
     destroy(): void {
+        this.destroyed = true;
+        if (this.refreshTimer) {
+            clearTimeout(this.refreshTimer);
+            this.refreshTimer = null;
+        }
         for (const unsubscribe of this.unsubscribers) {
             try {
                 unsubscribe();

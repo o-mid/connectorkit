@@ -27,6 +27,8 @@ export class AutoConnector {
     /** vNext wallet state storage (connector ID + account) */
     private walletStateStorage?: StorageAdapter<PersistedWalletState | null>;
     private debug: boolean;
+    private destroyed = false;
+    private detectorRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor(
         walletDetector: WalletDetector,
@@ -311,7 +313,9 @@ export class AutoConnector {
                 logger.info('Instant auto-connect successful', { walletName: storedWalletName });
             }
 
-            setTimeout(() => {
+            this.detectorRefreshTimer = setTimeout(() => {
+                this.detectorRefreshTimer = null;
+                if (this.destroyed) return;
                 this.walletDetector.initialize();
             }, 500);
 
@@ -373,6 +377,14 @@ export class AutoConnector {
                 logger.error('Auto-connect failed', { error: e });
             }
             this.walletStorage?.set(undefined);
+        }
+    }
+
+    destroy(): void {
+        this.destroyed = true;
+        if (this.detectorRefreshTimer) {
+            clearTimeout(this.detectorRefreshTimer);
+            this.detectorRefreshTimer = null;
         }
     }
 }

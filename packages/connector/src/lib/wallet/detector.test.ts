@@ -302,4 +302,28 @@ describe('WalletDetector', () => {
             vi.useRealTimers();
         }
     });
+
+    it('destroy during the delayed refresh does not re-init the detector', () => {
+        vi.useFakeTimers();
+        try {
+            const onFn = vi.fn(() => vi.fn());
+            const getFn = vi.fn(() => [] as ReturnType<typeof createMockPhantomWallet>[]);
+            vi.mocked(getWalletsRegistry).mockReturnValue({
+                get: getFn,
+                on: onFn,
+            } as unknown as ReturnType<typeof getWalletsRegistry>);
+
+            detector.initialize();
+            expect(onFn).toHaveBeenCalledTimes(2);
+
+            detector.destroy();
+            getFn.mockReturnValue([createMockPhantomWallet()]);
+            vi.advanceTimersByTime(1000);
+
+            expect(onFn).toHaveBeenCalledTimes(2);
+            expect(mockStateManager.getSnapshot().connectors).toEqual([]);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });

@@ -63,6 +63,58 @@ describe('Wallet Standard Shim', () => {
         }
     });
 
+    it('unsubscribe before the registry is ready does not reattach later', () => {
+        __resetWalletRegistryForTesting();
+
+        const originalWallets = (window.navigator as Navigator & { wallets?: unknown }).wallets;
+        const registerCallback = vi.fn();
+
+        try {
+            Object.defineProperty(window.navigator, 'wallets', {
+                value: undefined,
+                configurable: true,
+                writable: true,
+            });
+
+            const api = getWalletsRegistry();
+            const unsubscribe = api.on('register', registerCallback);
+
+            const attached: Array<(wallet: unknown) => void> = [];
+            const lateRegistry = {
+                get: () => [],
+                on: (event: string, callback: (wallet: unknown) => void) => {
+                    if (event === 'register') attached.push(callback);
+                    return () => {
+                        const index = attached.indexOf(callback);
+                        if (index >= 0) attached.splice(index, 1);
+                    };
+                },
+            };
+
+            Object.defineProperty(window.navigator, 'wallets', {
+                value: lateRegistry,
+                configurable: true,
+                writable: true,
+            });
+
+            getWalletsRegistry().get();
+            unsubscribe();
+            getWalletsRegistry().get();
+
+            const wallet = { name: 'Phantom' };
+            attached.forEach(callback => callback(wallet));
+
+            expect(registerCallback).not.toHaveBeenCalled();
+        } finally {
+            Object.defineProperty(window.navigator, 'wallets', {
+                value: originalWallets,
+                configurable: true,
+                writable: true,
+            });
+            __resetWalletRegistryForTesting();
+        }
+    });
+
     it('should return fallback registry in SSR', () => {
         const originalWindow = globalThis.window;
         Object.defineProperty(globalThis, 'window', { value: undefined, configurable: true });
